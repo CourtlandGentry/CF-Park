@@ -9,13 +9,11 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      Default: dexterl
-  # Keypair
+      
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-      Default: dexterl-kp-ohio
-    
+     
     oSVersion:
       Description: Choose the base OS for DSM
       Type: String
