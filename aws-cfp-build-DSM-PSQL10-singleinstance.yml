@@ -9,11 +9,11 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      
+
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-     
+    
     oSVersion:
       Description: Choose the base OS for DSM
       Type: String
@@ -33,9 +33,9 @@ Parameters:
        - 20.0
 
     DSMBuild:
-      Description: Provide the DSM Package version e.g Manager-Linux-12.5.985.x64.sh
+      Description: Provide the DSM build version, e.g for 12.5.985 enter 985
       Type: String
-      Default: Manager-Linux-12.5.985.x64.sh
+      Default: 985
       
     aCode:
       Description: Provide the Deep Security Activation Code
@@ -129,7 +129,7 @@ Resources:
         SecurityGroupIds: !Ref securityGroups
         Tags:
           - Key: Name
-            Value: !Sub ${nameTag}-cfp-DSM-${DSMver}
+            Value: !Sub ${nameTag}-cfp-DSM-${DSMver}-${DSMBuild}
           - Key: Shift
             Value: !Ref shiftTag
           - Key: Environment
@@ -184,7 +184,7 @@ Resources:
             localIP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
             #Start DSM installation
             yum install -y wget
-            wget --no-check-certificate https://files.trendmicro.com/products/deepsecurity/en/$DSM_Version/$DSM_Build
+            wget --no-check-certificate https://files.trendmicro.com/products/deepsecurity/en/$DSM_Version/Manager-Linux-$DSM_Version.$DSM_Build.x64.sh
             echo "AddressAndPortsScreen.ManagerAddress=$localIP
             AddressAndPortsScreen.NewNode=True
             UpgradeVerificationScreen.Overwrite=False
@@ -210,8 +210,8 @@ Resources:
             RelayScreen.Install=True
             SmartProtectionNetworkScreen.EnableFeedback=False" >> install.properties
             sleep 120
-            chmod 755 /root/dsm/$DSM_Build     
-            /root/dsm/$DSM_Build -q -varfile install.properties >> install.log
+            chmod 755 /root/dsm/Manager-Linux-$DSM_Version.$DSM_Build.x64.sh     
+            /root/dsm/Manager-Linux-$DSM_Version.$DSM_Build.x64.sh -q -varfile install.properties >> install.log
             if ps ax | grep -v grep | grep $SERVICE > /dev/null
             then
               echo "$SERVICE service running, installation complete" >> install.log;
