@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:
+    This template deploys a DSM on RHEL8/7 & PSQL10
+    Based from Clark's Template | https://github.com/postmanoy/Squad-Projects/tree/master/AWS%20Scripts/DSM-onprem-cloudsetup
+    Logs at /root/dsm/ >> install.log & dbinstall.log
+    
+Parameters:
+  # EC2 Instance Owner  
+    nameTag:
+      Description: Provide EC2 Owner Name for Tag prefix 
+      Type: String
+      Default: dexterl
+  # Keypair
+    keyPairName:
+      Description: Provide keypair to use
+      Type: "AWS::EC2::KeyPair::KeyName"
+      Default: dexterl-kp-ohio
+    
+    oSVersion:
+      Description: Choose the base OS for DSM
+      Type: String
+      Default: RHEL8
+      AllowedValues:
+      - RHEL8
+      - RHEL7
+      
+    DSMver:
+      Description: Choose the Deep Security Manager version (LTS/FR).
+      Type: String
+      Default: 12.5
+      AllowedValues:
+       - 11.0
+       - 12.0
+       - 12.5
+       - 20.0
+
+    DSMBuild:
+      Description: Provide the DSM Package version e.g Manager-Linux-12.5.985.x64.sh
+      Type: String
+      Default: Manager-Linux-12.5.985.x64.sh
+      
+    aCode:
+      Description: Provide the Deep Security Activation Code
+      Type: String
+
+    dBase:
+      Description: Provide the Deep Security Database Name
+      Type: String
+      Default: dsmdb
+      
+    dBaseUser:
+      Description: Provide the Database Owner
+      Type: String
+      Default: dbadmin
+
+    dBasePass:
+      Description: Provide the Database Password
+      Type: String
+      Default: trendmicro
+    
+    subnetID:
+      Description: Select Subnet for DSM Server (Default is DSaaS Public Subnet 2)
+      Type: AWS::EC2::Subnet::Id
+      Default: subnet-fa166e80  
+    
+    securityGroups:
+      Description: Select Security Group/s for this EC2 instances
+      Type: 'List<AWS::EC2::SecurityGroup::Id>'
+      Default: sg-0f0b0eb448eeccce1, sg-0e66226f
+
+    instanceType:
+      Description: Select Instance Type 
+      Type: String
+      Default: t2.large
+      AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t2.large
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m4.16xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+
+    shiftTag:
+      Description: Select your shift
+      Type: String
+      Default: IST-Shift    
+      AllowedValues:
+      - ANZ-Shift    
+      - IST-Shift
+      - NABU-Shift
+
+    envTag:
+      Description: Select your environment
+      Type: String
+      Default: Test
+      AllowedValues:
+      - Project
+      - Test    
+           
+Mappings:
+  RegionMap: 
+    us-east-2:
+      RHEL8: ami-0a54aef4ef3b5f881
+      RHEL7: ami-01a834fd83ae239ff
+    ap-northeast-1:
+      RHEL8: ami-0a1c2ec61571737db
+      RHEL7: ami-00b95502a4d51a07e
+        
+Resources:
+  # Ec2 Instances
+    DSMEC201:
+      Type: 'AWS::EC2::Instance'
+      Properties:
+        InstanceType: !Ref instanceType 
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref oSVersion]
+        KeyName: !Sub ${keyPairName}
+        SubnetId: !Ref subnetID
+        SecurityGroupIds: !Ref securityGroups
+        Tags:
+          - Key: Name
+            Value: !Sub ${nameTag}-cfp-DSM-${DSMver}
+          - Key: Shift
+            Value: !Ref shiftTag
+          - Key: Environment
+            Value: !Ref envTag          
+        UserData: 
+          Fn::Base64: 
+            !Sub |
+            #!/bin/bash
+            mkdir -p /root/dsm/
+            cd /root/dsm/
+            date >> dbinstall.log
+            echo "loading parameters" >> dbinstall.log
+            allowIP=172.31.0.0/16
+            db=${dBase}
+            user=${dBaseUser}
+            dbPass=${dBasePass}
+            osCheck=${oSVersion}
+            if [ "$osCheck" == "RHEL8" ]; then 
+              echo "installing database for $osCheck" >> dbinstall.log;  
+              dnf install @postgresql:10 -y;
+              /usr/bin/postgresql-setup --initdb;
+              sed -i "s/#listen_addresses =.*/listen_addresses ='*'/g" /var/lib/pgsql/data/postgresql.conf;
+              sed -i "a\host all  all  $allowIP trust" /var/lib/pgsql/data/pg_hba.conf;
+              systemctl start postgresql;
+              systemctl enable postgresql;
+            elif [ "$osCheck" == "RHEL7" ]; then
+              echo "installing database for $osCheck" >> dbinstall.log;
+              rpm -Uvh "https://yum.postgresql.org/10/redhat/rhel-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm";
+              yum install -y postgresql10-server postgresql10;
+              /usr/pgsql-10/bin/postgresql-10-setup initdb;
+              sed -i "s/#listen_addresses =.*/listen_addresses ='*'/g" /var/lib/pgsql/10/data/postgresql.conf;
+              sed -i "a\host all  all  $allowIP trust" /var/lib/pgsql/10/data/pg_hba.conf;
+              systemctl start postgresql-10.service;
+              systemctl enable postgresql-10.service;
+            else 
+              echo "$osCheck not supported" >> dbinstall.log; 
+            fi
+            echo "installed $(psql --version) successfully" >> dbinstall.log
+            su -l postgres -c "psql -c 'CREATE DATABASE $db'"
+            su -l postgres -c "psql -c 'CREATE ROLE $user WITH PASSWORD '\''$dbPass'\'' LOGIN'"
+            su -l postgres -c "psql -c 'GRANT ALL PRIVILEGES ON DATABASE $db to $user'"
+            su -l postgres -c "psql -c 'GRANT ALL ON DATABASE $db TO $user'"
+            su -l postgres -c "psql -c 'GRANT CONNECT ON DATABASE $db TO $user'"
+            su -l postgres -c "psql -c 'ALTER ROLE $user CREATEDB CREATEROLE'"
+            date >> dbinstall.log
+            #Deploy DSM
+            masterpass=trendmicro
+            SERVICE=dsm_s
+            AC=${aCode}
+            DSM_Version=${DSMver}
+            DSM_Build=${DSMBuild}
+            localIP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
+            #Start DSM installation
+            yum install -y wget
+            wget --no-check-certificate https://files.trendmicro.com/products/deepsecurity/en/$DSM_Version/$DSM_Build
+            echo "AddressAndPortsScreen.ManagerAddress=$localIP
+            AddressAndPortsScreen.NewNode=True
+            UpgradeVerificationScreen.Overwrite=False
+            LicenseScreen.License.-1=$AC
+            DatabaseScreen.DatabaseType=PostgreSQL
+            DatabaseScreen.Hostname=$localIP
+            DatabaseScreen.Transport=TCP
+            DatabaseScreen.DatabaseName=$db
+            DatabaseScreen.Username=$user
+            DatabaseScreen.Password=$dbPass
+            AddressAndPortsScreen.ManagerPort=443
+            AddressAndPortsScreen.HeartbeatPort=4120
+            CredentialsScreen.Administrator.Username=masteradmin
+            CredentialsScreen.Administrator.Password=$masterpass
+            CredentialsScreen.UseStrongPasswords=False
+            SecurityUpdateScreen.UpdateComponents=True
+            SecurityUpdateScreen.Proxy=False
+            SecurityUpdateScreen.ProxyAuthentication=False
+            SoftwareUpdateScreen.UpdateSoftware=True
+            SoftwareUpdateScreen.Proxy=False
+            SoftwareUpdateScreen.ProxyAuthentication=False
+            SoftwareUpdateScreen.ProxyAuthentication=False
+            RelayScreen.Install=True
+            SmartProtectionNetworkScreen.EnableFeedback=False" >> install.properties
+            sleep 120
+            chmod 755 /root/dsm/$DSM_Build     
+            /root/dsm/$DSM_Build -q -varfile install.properties >> install.log
+            if ps ax | grep -v grep | grep $SERVICE > /dev/null
+            then
+              echo "$SERVICE service running, installation complete" >> install.log;
+              systemctl stop dsm_s;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.webserviceAPIEnabled -value true;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.statusMonitoringAPIEnabled -value true;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivation -value 1;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationHostname -value true;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationActiveHost -value 2;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateClonedVM -value true;
+              /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateUnknownVM -value true;
+              sleep 5
+              systemctl start dsm_s;
+            fi
+            systemctl status dsm_s >> install.log 
+
+    elasticIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            InstanceId: !Ref DSMEC201  
+  ### EOF
