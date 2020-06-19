@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: 2010-09-09
+#notes: available region(Ohio & Tokyo)
+Description:
+    This template deploys a Linux Server with DSA installed
+
+Parameters:
+  # EC2 Instance Owner  
+    nameTag:
+      Description: Provide EC2 Owner Name for Tag prefix 
+      Type: String
+      Default: dexterl
+  # Keypair
+    keyPairName:
+      Description: Provide keypair to use
+      Type: "AWS::EC2::KeyPair::KeyName"
+      Default: dexterl-kp-ohio
+    
+    oSVersion:
+      Description: Operating System to Deploy
+      Type: String
+      AllowedValues:
+      - AmazonLinux
+      - AmazonLinux2
+      - RHEL8
+      - RHEL7
+      - RHEL6
+      - CentOS7
+      - Ubuntu20
+      - Ubuntu18
+      - Ubuntu16
+      - SUSE15
+      - SUSE12
+      - CloudLinux8
+      - Kali  
+ 
+    subnetID:
+      Description: Select Subnet to use (Default is DSaaS Public Subnet 2)
+      Type: AWS::EC2::Subnet::Id
+      Default: subnet-fa166e80  
+    
+    securityGroups:
+      Description: Select Security Group/s for this EC2 instances
+      Type: 'List<AWS::EC2::SecurityGroup::Id>'
+      Default: sg-0f0b0eb448eeccce1, sg-0e66226f
+
+    instanceType:
+      Description: Select Instance Type 
+      Type: String
+      Default: t3.medium
+      AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m4.16xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+
+    tenantID:
+        Description: Provide your Cloud One - Workload Security Tenant ID
+        Type: String
+        Default: 3A142C4B-3479-D308-7B27-AEE1D3D4FC39
+    
+    toKen:
+          Description: Provide your tenant token
+          Type: String
+          Default: 0E05CDD4-F78F-455E-C347-9A522FB51AEB
+        
+    shiftTag:
+      Description: Select your shift
+      Type: String
+      Default: IST-Shift    
+      AllowedValues:
+      - ANZ-Shift    
+      - IST-Shift
+      - NABU-Shift
+
+    envTag:
+      Description: Select your environment
+      Type: String
+      Default: Test
+      AllowedValues:
+      - Project
+      - Test    
+           
+Mappings:
+  RegionMap: 
+    us-east-2:
+      AmazonLinux: ami-026dea5602e368e96
+      AmazonLinux2: ami-026dea5602e368e96
+      RHEL8: ami-0a54aef4ef3b5f881
+      RHEL7: ami-0a33696f
+      RHEL6: ami-16a99673
+      CentOS7: ami-0f2b4fc905b0bd1f1
+      Ubuntu20: ami-0e84e211558a022c0
+      Ubuntu18: ami-07c1207a9d40bc3bd
+      Ubuntu16: ami-03ffa9b61e8d2cfda
+      SUSE15: ami-013d888fbcf1a3962
+      SUSE12: ami-0185282502c4b22be
+      CloudLinux8: na
+      Kali: ami-00f7390b60c41a3c0        
+    ap-northeast-1:
+      AmazonLinux: ami-0a1c2ec61571737db
+      AmazonLinux2: ami-0a1c2ec61571737db
+      RHEL8: ami-0a1c2ec61571737db
+      RHEL7: ami-00b95502a4d51a07e
+      RHEL6: na
+      CentOS7: ami-008c2db991193176d
+      Ubuntu20: na
+      Ubuntu18: ami-0985eb6c1f2ec1485
+      Ubuntu16: ami-0196a6e6d6129f2c8
+      SUSE15: ami-0985eb6c1f2ec1485
+      SUSE12: ami-0db1d9f0c47ea98d6
+      CloudLinux8: na
+      Kali: ami-0d701fcae946c61ed
+        
+Resources:
+  # Ec2 Instances
+    EC201:
+      Type: 'AWS::EC2::Instance'
+      Properties:
+        InstanceType: !Ref instanceType 
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref oSVersion]
+        CreditSpecification:
+          CPUCredits: standard
+        KeyName: !Sub ${keyPairName}
+        SubnetId: !Ref subnetID
+        SecurityGroupIds: !Ref securityGroups
+        Tags:
+          - Key: Name
+            Value: !Sub ${nameTag}-cfp-${oSVersion}-c1ws
+          - Key: Shift
+            Value: !Ref shiftTag
+          - Key: Environment
+            Value: !Ref envTag          
+        UserData: 
+          Fn::Base64: 
+              !Sub |
+                #!/bin/bash
+
+                ACTIVATIONURL='dsm://agents.deepsecurity.trendmicro.com:443/'
+                MANAGERURL='https://app.deepsecurity.trendmicro.com:443'
+                CURLOPTIONS='--silent --tlsv1.2'
+                linuxPlatform='';
+                isRPM='';
+
+                if [[ $(/usr/bin/id -u) -ne 0 ]]; then
+                    echo You are not running as the root user.  Please try again with root privileges.;
+                    logger -t You are not running as the root user.  Please try again with root privileges.;
+                    exit 1;
+                fi;
+
+                if ! type curl >/dev/null 2>&1; then
+                    echo "Please install CURL before running this script."
+                    logger -t Please install CURL before running this script
+                    exit 1
+                fi
+
+                CURLOUT=$(eval curl $MANAGERURL/software/deploymentscript/platform/linuxdetectscriptv1/ -o /tmp/PlatformDetection $CURLOPTIONS;)
+                err=$?
+                if [[ $err -eq 60 ]]; then
+                    echo "TLS certificate validation for the agent package download has failed. Please check that your Deep Security Manager TLS certificate is signed by a trusted root certificate authority. For more information, search for \"deployment scripts\" in the Deep Security Help Center."
+                    logger -t TLS certificate validation for the agent package download has failed. Please check that your Deep Security Manager TLS certificate is signed by a trusted root certificate authority. For more information, search for \"deployment scripts\" in the Deep Security Help Center.
+                    exit 1;
+                fi
+
+                if [ -s /tmp/PlatformDetection ]; then
+                    . /tmp/PlatformDetection
+                else
+                    echo "Failed to download the agent installation support script."
+                    logger -t Failed to download the Deep Security Agent installation support script
+                    exit 1
+                fi
+
+                platform_detect
+                if [[ -z "${!linuxPlatform}" ]] || [[ -z "${!isRPM}" ]]; then
+                    echo Unsupported platform is detected
+                    logger -t Unsupported platform is detected
+                    exit 1
+                fi
+
+                echo Downloading agent package...
+                if [[ $isRPM == 1 ]]; then package='agent.rpm'
+                    else package='agent.deb'
+                fi
+                curl -H "Agent-Version-Control: on" $MANAGERURL/software/agent/${!runningPlatform}${!majorVersion}/${!archType}/$package?tenantID=69540 -o /tmp/$package $CURLOPTIONS
+
+                echo Installing agent package...
+                rc=1
+                if [[ $isRPM == 1 && -s /tmp/agent.rpm ]]; then
+                    rpm -ihv /tmp/agent.rpm
+                    rc=$?
+                elif [[ -s /tmp/agent.deb ]]; then
+                    dpkg -i /tmp/agent.deb
+                    rc=$?
+                else
+                    echo Failed to download the agent package. Please make sure the package is imported in the Deep Security Manager
+                    logger -t Failed to download the agent package. Please make sure the package is imported in the Deep Security Manager
+                    exit 1
+                fi
+                if [[ ${!rc} != 0 ]]; then
+                    echo Failed to install the agent package
+                    logger -t Failed to install the agent package
+                    exit 1
+                fi
+
+                echo Install the agent package successfully
+
+                sleep 15
+                /opt/ds_agent/dsa_control -r
+                /opt/ds_agent/dsa_control -a $ACTIVATIONURL "tenantID:${tenantID}" "token:${toKen}"
+                # /opt/ds_agent/dsa_control -a dsm://agents.deepsecurity.trendmicro.com:443/ "tenantID:3A142C4B-3479-D308-7B27-AEE1D3D4FC39" "token:0E05CDD4-F78F-455E-C347-9A522FB51AEB"
+
+  ### EOF
