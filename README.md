@@ -10,17 +10,23 @@ Cloud Formation Template for Lab Deployment
     1. Deploy CF template, access https://<Elastic IP assigned>:443
     2. For troubleshooting, you can check the logs at /root/dsm/ >> install.log & dbinstall.log
     
-# aws-cfp-LinuxDSA.yml
-    This template deploys a Linux Server with DSA installed
+# Deep Security Agent
+    The following templates deploys an EC2 instance with DSA installed
     
+    aws-cfp-Linux-DSA.yml        -  AMZLinux, RHEL, CentOS, Ubuntu, SUSE, Kali
+    aws-cfp-Windows-DSA.yml      -  Windows Server 2019, 2016, 2012R2, 2008R2, 2003
+
     Pre-req:
-    You need to make sure that a DSA Package is imported in DSM
-    You need to specify DSM host/ip address in the CF Parameter
+     You need to make sure that a DSA Package is imported in DSM
+     You need to specify DSM host/ip address in the CF parameters
     
-# aws-cfp-WindowsDSA.yml
-    This template deploys a Windows Server with DSA installed
+# For Cloud One - Workload Security Agent
+    The following templates deploys an EC2 instance with DSA installed
     
-    Pre-req:
-    You need to make sure that a DSA Package is imported in DSM
-    You need to specify DSM host/ip address in the CF Parameter
+    aws-cfp-Linux-C1WS.yml        -  AMZLinux, RHEL, CentOS, Ubuntu, SUSE, Kali
+    aws-cfp-Windows-C1WS.yml      -  Windows Server 2019, 2016, 2012R2, 2008R2, 2003 
+    
+    Note: Need to specify TenantID and token in the CF parameters
+    
+     
     
