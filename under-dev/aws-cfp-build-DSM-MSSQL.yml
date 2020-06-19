@@ -7,12 +7,10 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      Default: dexterl
 
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-      Default: dexterl-kp-ohio
     
     dBVersion:
       Description: Select the Base OS and MSSQL version to deploy
@@ -41,7 +39,6 @@ Parameters:
     aCode:
       Description: Provide the Deep Security Activation Code
       Type: String
-      Default: AP-R9RM-92WHD-B2UR5-BV2YB-HZYM8-HYYVA
 
     dBase:
       Description: Provide the Deep Security Database Name
