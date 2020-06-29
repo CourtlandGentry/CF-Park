@@ -3,6 +3,8 @@ Description:
     This template deploys a DSM on RHEL8/7 & PSQL10
     Based from Clark's Template | https://github.com/postmanoy/Squad-Projects/tree/master/AWS%20Scripts/DSM-onprem-cloudsetup
     Logs at /root/dsm/ >> install.log & dbinstall.log
+    Note ~wait for dsm service to start 5-10 mins after stack completion
+         ~access dsm web console via https://EIP
     
 Parameters:
   # EC2 Instance Owner  
