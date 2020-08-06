@@ -1,19 +1,18 @@
 AWSTemplateFormatVersion: 2010-09-09
 #notes: available region(Ohio & Tokyo)
 Description:
-    This template deploys a Linux Server with DSA installed
+    This template deploys a Linux Server with DSA(WS) installed
 
 Parameters:
   # EC2 Instance Owner  
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      Default: dexterl
+
   # Keypair
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-      Default: dexterl-kp-ohio
     
     oSVersion:
       Description: Operating System to Deploy
@@ -30,31 +29,27 @@ Parameters:
       - Ubuntu16
       - SUSE15
       - SUSE12
-      - CloudLinux8
-      - Kali  
- 
+  
     subnetID:
-      Description: Select Subnet to use (Default is DSaaS Public Subnet 2)
+      Description: Select Subnet to use
       Type: AWS::EC2::Subnet::Id
-      Default: subnet-fa166e80  
     
     securityGroups:
       Description: Select Security Group/s for this EC2 instances
       Type: 'List<AWS::EC2::SecurityGroup::Id>'
-      Default: sg-0f0b0eb448eeccce1, sg-0e66226f
 
     instanceType:
       Description: Select Instance Type 
       Type: String
-      Default: t3.medium
+      Default: t2.medium
       AllowedValues:
-      - t3.nano
-      - t3.micro
-      - t3.small
-      - t3.medium
-      - t3.large
-      - t3.xlarge
-      - t3.2xlarge
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
       - m4.large
       - m4.xlarge
       - m4.2xlarge
@@ -70,12 +65,11 @@ Parameters:
     tenantID:
         Description: Provide your Cloud One - Workload Security Tenant ID
         Type: String
-        Default: 3A142C4B-3479-D308-7B27-AEE1D3D4FC39
+
     
     toKen:
           Description: Provide your tenant token
           Type: String
-          Default: 0E05CDD4-F78F-455E-C347-9A522FB51AEB
         
     shiftTag:
       Description: Select your shift
@@ -108,8 +102,7 @@ Mappings:
       Ubuntu16: ami-03ffa9b61e8d2cfda
       SUSE15: ami-013d888fbcf1a3962
       SUSE12: ami-0185282502c4b22be
-      CloudLinux8: na
-      Kali: ami-00f7390b60c41a3c0        
+        
     ap-northeast-1:
       AmazonLinux: ami-0a1c2ec61571737db
       AmazonLinux2: ami-0a1c2ec61571737db
@@ -122,8 +115,6 @@ Mappings:
       Ubuntu16: ami-0196a6e6d6129f2c8
       SUSE15: ami-0985eb6c1f2ec1485
       SUSE12: ami-0db1d9f0c47ea98d6
-      CloudLinux8: na
-      Kali: ami-0d701fcae946c61ed
         
 Resources:
   # Ec2 Instances
@@ -220,6 +211,4 @@ Resources:
                 sleep 15
                 /opt/ds_agent/dsa_control -r
                 /opt/ds_agent/dsa_control -a $ACTIVATIONURL "tenantID:${tenantID}" "token:${toKen}"
-                # /opt/ds_agent/dsa_control -a dsm://agents.deepsecurity.trendmicro.com:443/ "tenantID:3A142C4B-3479-D308-7B27-AEE1D3D4FC39" "token:0E05CDD4-F78F-455E-C347-9A522FB51AEB"
-
   ### EOF
