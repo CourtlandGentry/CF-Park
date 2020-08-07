@@ -5,13 +5,14 @@ Description:
     Logs at /root/dsm/ >> install.log & dbinstall.log
     Note ~wait for dsm service to start 5-10 mins after stack completion
          ~access dsm web console via https://EIP
-    
+       
 Parameters:
   # EC2 Instance Owner  
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
 
+  # Keypair
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
@@ -38,7 +39,12 @@ Parameters:
       Description: Provide the DSM build version, e.g for 12.5.985 enter 985
       Type: String
       Default: 985
-      
+
+    DSMPass:
+      Description: Provide the DSM Masteradmin Password
+      Type: String
+      Default: trendmicro
+
     aCode:
       Description: Provide the Deep Security Activation Code
       Type: String
@@ -131,7 +137,7 @@ Resources:
         SecurityGroupIds: !Ref securityGroups
         Tags:
           - Key: Name
-            Value: !Sub ${nameTag}-cfp-DSM-${DSMver}-${DSMBuild}
+            Value: !Sub ${nameTag}-cfp-DSM-${DSMver}-${DSMBuild}+pdb
           - Key: Shift
             Value: !Ref shiftTag
           - Key: Environment
@@ -178,7 +184,7 @@ Resources:
             su -l postgres -c "psql -c 'ALTER ROLE $user CREATEDB CREATEROLE'"
             date >> dbinstall.log
             #Deploy DSM
-            masterpass=trendmicro
+            masterpass=${DSMPass}
             SERVICE=dsm_s
             AC=${aCode}
             DSM_Version=${DSMver}
