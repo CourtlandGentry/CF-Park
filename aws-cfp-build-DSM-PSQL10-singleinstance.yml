@@ -43,7 +43,6 @@ Parameters:
     DSMPass:
       Description: Provide the DSM Masteradmin Password
       Type: String
-      Default: trendmicro
 
     aCode:
       Description: Provide the Deep Security Activation Code
@@ -62,7 +61,6 @@ Parameters:
     dBasePass:
       Description: Provide the Database Password
       Type: String
-      Default: trendmicro
     
     subnetID:
       Description: Select Subnet for DSM Server (Default is DSaaS Public Subnet 2)
