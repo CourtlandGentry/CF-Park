@@ -10,6 +10,12 @@ Cloud Formation Template for Lab Deployment
     1. Deploy CF template, access https://<Elastic IP assigned>:443
     2. For troubleshooting, you can check the logs at /root/dsm/ >> install.log & dbinstall.log
     
+    Known Issues/To Do :): 
+       - if RHEL 8 is selected and deployed DS12 and below, would fail due to exceptions
+       - allow IP for postgres hardcoded
+       - after CF deploy complete, takes a 5-10 mins for DSM service to be ready, sometimes service needs to be started manually
+       
+       
 # Deep Security Agent
     The following templates deploys an EC2 instance with DSA installed
     
