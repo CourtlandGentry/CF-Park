@@ -1,21 +1,24 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description:
     This template deploys a DSM on RHEL8/7 & PSQL10
-    Based from Clark's Template | https://github.com/postmanoy/Squad-Projects/tree/master/AWS%20Scripts/DSM-onprem-cloudsetup
-    Logs at /root/dsm/ >> install.log & dbinstall.log
-    Note ~wait for dsm service to start 5-10 mins after stack completion
-         ~access dsm web console via https://EIP
-       
+    # Based from Clark's Template | https://github.com/postmanoy/Squad-Projects/tree/master/AWS%20Scripts/DSM-onprem-cloudsetup
+    # Logs at /root/dsm/ >> install.log & dbinstall.log
+    # Changelog: add n.virginia oregon n.cali sg; add awscli 
+    # To do: remove hardcode allowIP for Postgre updated AMI IDs oregon n.cali 
+    #        implement Creation Policy
+    # Notes: After complete, need to wait for DB and DSM to be installed, sometimes takes 30 mins before DSM service is up
+
 Parameters:
   # EC2 Instance Owner  
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-
+      Default: 
   # Keypair
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
+      Default: 
     
     oSVersion:
       Description: Choose the base OS for DSM
@@ -28,7 +31,7 @@ Parameters:
     DSMver:
       Description: Choose the Deep Security Manager version (LTS/FR).
       Type: String
-      Default: 12.5
+      Default: 20.0
       AllowedValues:
        - 11.0
        - 12.0
@@ -38,15 +41,17 @@ Parameters:
     DSMBuild:
       Description: Provide the DSM build version, e.g for 12.5.985 enter 985
       Type: String
-      Default: 985
+      Default: 262
 
     DSMPass:
       Description: Provide the DSM Masteradmin Password
       Type: String
+      Default: changeMe
 
     aCode:
       Description: Provide the Deep Security Activation Code
       Type: String
+
 
     dBase:
       Description: Provide the Deep Security Database Name
@@ -61,6 +66,7 @@ Parameters:
     dBasePass:
       Description: Provide the Database Password
       Type: String
+      Default: changeMe
     
     subnetID:
       Description: Select Subnet for DSM Server (Default is DSaaS Public Subnet 2)
@@ -77,14 +83,10 @@ Parameters:
       Type: String
       Default: t2.large
       AllowedValues:
-      - t3.nano
-      - t3.micro
-      - t3.small
-      - t3.medium
+      - t2.medium
       - t2.large
-      - t3.large
-      - t3.xlarge
-      - t3.2xlarge
+      - t2.xlarge
+      - t2.2xlarge
       - m4.large
       - m4.xlarge
       - m4.2xlarge
@@ -116,12 +118,24 @@ Parameters:
            
 Mappings:
   RegionMap: 
+    us-east-1:
+      RHEL8: ami-098f16afa9edf40be
+      RHEL7: ami-029c0fbe456d58bd1
     us-east-2:
       RHEL8: ami-0a54aef4ef3b5f881
       RHEL7: ami-01a834fd83ae239ff
+    us-west-1:
+      RHEL8: ami-066df92ac6f03efca
+      RHEL7: ami-
+    us-west-2:
+      RHEL8: ami-02f147dfb8be58a10
+      RHEL7: ami-   
     ap-northeast-1:
       RHEL8: ami-0a1c2ec61571737db
       RHEL7: ami-00b95502a4d51a07e
+    ap-southeast-1:
+      RHEL8: ami-02b6d9703a69265e9
+      RHEL7: ami-3f03c55c  
         
 Resources:
   # Ec2 Instances
@@ -145,8 +159,16 @@ Resources:
             !Sub |
             #!/bin/bash
             mkdir -p /root/dsm/
+            mkdir -p /root/dsm/temp
+            cd /root/dsm/temp
+            yum install unzip -y
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            chmod +x /root/dsm/tmp/aws/install
+            /root/dsm/tmp/aws/install
             cd /root/dsm/
             date >> dbinstall.log
+            aws --version >> dbinstall.log
             echo "loading parameters" >> dbinstall.log
             allowIP=172.31.0.0/16
             db=${dBase}
@@ -183,7 +205,6 @@ Resources:
             date >> dbinstall.log
             #Deploy DSM
             masterpass=${DSMPass}
-            SERVICE=dsm_s
             AC=${aCode}
             DSM_Version=${DSMver}
             DSM_Build=${DSMBuild}
@@ -218,24 +239,26 @@ Resources:
             sleep 120
             chmod 755 /root/dsm/Manager-Linux-$DSM_Version.$DSM_Build.x64.sh     
             /root/dsm/Manager-Linux-$DSM_Version.$DSM_Build.x64.sh -q -varfile install.properties >> install.log
-            if ps ax | grep -v grep | grep $SERVICE > /dev/null
-            then
-              echo "$SERVICE service running, installation complete" >> install.log;
-              systemctl stop dsm_s;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.webserviceAPIEnabled -value true;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.statusMonitoringAPIEnabled -value true;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivation -value 1;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationHostname -value true;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationActiveHost -value 2;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateClonedVM -value true;
-              /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateUnknownVM -value true;
-              sleep 5
-              systemctl start dsm_s;
-            fi
-            systemctl status dsm_s >> install.log 
+            systemctl stop dsm_s
+            sleep 5
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.webserviceAPIEnabled -value true
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.statusMonitoringAPIEnabled -value true
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivation -value 1
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationHostname -value true
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.agentInitiatedActivationActiveHost -value 2
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateClonedVM -value true
+            /opt/dsm/dsm_c -action changesetting -name settings.configuration.allowReactivateUnknownVM -value true
+            sleep 5
+            systemctl start dsm_s
+            systemctl status dsm_s >> install.log
+            echo "EOF" >> install.log 
 
     elasticIP:
         Type: AWS::EC2::EIP
         Properties:
-            InstanceId: !Ref DSMEC201  
+            InstanceId: !Ref DSMEC201
+            Tags:
+              - Key: Name
+                Value: !Sub ${nameTag}-cfp-DSM-${DSMver}-${DSMBuild}-EIP
+
   ### EOF
