@@ -8,12 +8,12 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      Default: dexterl
+
   # Keypair
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-      Default: dexterl-kp-ohio
+
     
     oSVersion:
       Description: Operating System to Deploy
@@ -46,8 +46,15 @@ Parameters:
     instanceType:
       Description: Select Instance Type 
       Type: String
-      Default: t3.medium
+      Default: t2.medium
       AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge        
       - t3.nano
       - t3.micro
       - t3.small
@@ -97,7 +104,7 @@ Mappings:
   RegionMap: 
     us-east-2:
       AmazonLinux: ami-026dea5602e368e96
-      AmazonLinux2: ami-026dea5602e368e96
+      AmazonLinux2: ami-0a0ad6b70e61be944
       RHEL8: ami-0a54aef4ef3b5f881
       RHEL7: ami-0a33696f
       RHEL6: ami-16a99673

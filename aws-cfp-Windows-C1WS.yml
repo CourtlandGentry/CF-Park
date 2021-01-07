@@ -8,6 +8,7 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
+
   # Keypair
     keyPairName:
       Description: Provide keypair to use
@@ -26,23 +27,28 @@ Parameters:
     subnetID:
       Description: Select Subnet to use (Default is DSaaS Public Subnet 2)
       Type: AWS::EC2::Subnet::Id
-
+      Default: subnet-fa166e80  
+    
     securityGroups:
       Description: Select Security Group/s for this EC2 instances
       Type: 'List<AWS::EC2::SecurityGroup::Id>'
+      Default: sg-0f0b0eb448eeccce1, sg-0e66226f
 
     instanceType:
       Description: Select Instance Type 
       Type: String
       Default: t2.medium
       AllowedValues:
-      - t2.nano
-      - t2.micro
-      - t2.small
       - t2.medium
       - t2.large
       - t2.xlarge
-      - t2.2xlarge
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
       - m4.large
       - m4.xlarge
       - m4.2xlarge
@@ -62,7 +68,7 @@ Parameters:
     toKen:
       Description: Provide your tenant token
       Type: String
-     
+
     shiftTag:
       Description: Select your shift
       Type: String
@@ -83,8 +89,8 @@ Parameters:
 Mappings:
   RegionMap: 
     us-east-2:
-      WindowsServer2019: ami-0dab4b4b372b05414
-      WindowsServer2016: ami-0b8c48737eee50774
+      WindowsServer2019: ami-0ca69a9d06da3835d
+      WindowsServer2016: ami-0952fb5203ddacf5c
       WindowsServer2012R2: ami-04fe13467029c1627
       WindowsServer2008R2: ami-0e50388a58e27fdc8
       WindowsServer200364bit: ami-08267c6d    
@@ -178,4 +184,5 @@ Resources:
               Stop-Transcript
               echo "$(Get-Date -format T) - DSA Deployment Finished"
               </powershell>
+
   ### EOF

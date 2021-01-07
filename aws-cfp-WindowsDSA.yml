@@ -8,12 +8,11 @@ Parameters:
     nameTag:
       Description: Provide EC2 Owner Name for Tag prefix 
       Type: String
-      Default: dexterl
+
   # Keypair
     keyPairName:
       Description: Provide keypair to use
       Type: "AWS::EC2::KeyPair::KeyName"
-      Default: dexterl-kp-ohio
     
     oSVersion:
       Description: Operating System to Deploy
@@ -62,12 +61,10 @@ Parameters:
     dsmAdd:
       Description: Provide your DSM Server Address
       Type: String
-      Default: 172.31.17.162
     
     dsmPort:
           Description: Provide your DSM Server Port (4119 or 443)
           Type: String
-          Default: 443
 
     shiftTag:
       Description: Select your shift
@@ -89,8 +86,8 @@ Parameters:
 Mappings:
   RegionMap: 
     us-east-2:
-      WindowsServer2019: ami-0dab4b4b372b05414
-      WindowsServer2016: ami-0b8c48737eee50774
+      WindowsServer2019: ami-0ca69a9d06da3835d
+      WindowsServer2016: ami-0952fb5203ddacf5c
       WindowsServer2012R2: ami-04fe13467029c1627
       WindowsServer2008R2: ami-0e50388a58e27fdc8
       WindowsServer200364bit: ami-08267c6d    
