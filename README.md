@@ -35,4 +35,6 @@ Cloud Formation Template for Lab Deployment
     Note: Need to specify TenantID and token in the CF parameters
     
      
-    
+# Others
+   
+	aws-cfp-jenkins - builds a single instance Jenkins Master
