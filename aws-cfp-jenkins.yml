@@ -189,7 +189,7 @@ Resources:
 
     # Properties of the Instance that we are launching. Here we define things like EBS volumes, SG's, The AMI used, etc..
     Properties:
-      # Create the 25GB EBS volume that we will use for /var/lib/jenkins
+      # Create a 20GB EBS volume
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
