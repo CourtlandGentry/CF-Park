@@ -1,0 +1,322 @@
+AWSTemplateFormatVersion: 2010-09-09
+#TODO: Update condition for NAT GW OPTION, NAT param done, but not yet used in 'Resources'
+Description: >-
+  This template creates a Multi-AZ, multi-subnet VPC infrastructure with 2 public subnets, 2 private subnets and 1 natted subnet.
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Availability Zone Configuration
+        Parameters:
+          - VPCCidrBlock
+          - AvailabilityZones
+          - Project
+          - CreateNat
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - PublicSubnetACIDR
+          - PublicSubnetBCIDR
+          - PrivateSubnetACIDR
+          - PrivateSubnetBCIDR
+          - PrivateSubnetNCIDR
+    ParameterLabels:
+      VPCCidrBlock:
+        default: VPC CIDR Block
+      AvailabilityZones:
+        default: Availability Zones
+      PrivateSubnetACIDR:
+        default: Private subnet A CIDR
+      PrivateSubnetBCIDR:
+        default: Private subnet B CIDR 
+      PrivateSubnetNCIDR:
+        default: Private subnet Natted CIDR
+      PublicSubnetACIDR:
+        default: Public subnet A CIDR
+      PublicSubnetBCIDR:
+        default: Public subnet B CIDR
+Parameters:
+  Project:
+    Description: Project Name 
+    Type: String
+    Default: cfp-pp
+  CreateNat:
+    Description: Create Nat Gateway (sure/nope)
+    Type: String
+    Default: nope
+    AllowedValues:
+    - sure
+    - nope     
+  AvailabilityZones:
+    Description: List of Availability Zones to use for the subnets in the VPC (Select at least 3 AZ). 
+    Type: 'List<AWS::EC2::AvailabilityZone::Name>'
+  VPCCidrBlock:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+    Type: String
+  PublicSubnetACIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.128.0/20
+    Description: CIDR block for the public subnet A located in Availability Zone 1
+    Type: String
+  PublicSubnetBCIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.160.0/20
+    Description: CIDR block for the public subnet B located in Availability Zone 2
+    Type: String
+  PrivateSubnetACIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/20
+    Description: CIDR block for private subnet A located in Availability Zone 1
+    Type: String
+  PrivateSubnetBCIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.32.0/20
+    Description: CIDR block for private subnet B located in Availability Zone 2
+    Type: String
+  PrivateSubnetNCIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.208.0/20
+    Description: CIDR block for public DMZ subnet located in Availability Zone 3
+    Type: String
+  AllowSecurityGroup:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: IP parameter must be in the form x.x.x.x/x
+    Default: 103.5.6.245/32
+    Description: Specify IP address to allow in the default Security Group, must be in the form x.x.x.x/x
+    Type: String
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: !Ref VPCCidrBlock
+      InstanceTenancy: default
+      EnableDnsHostnames: true
+      EnableDnsSupport: false
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-vpc-${AWS::StackName}
+### Internet Gateway
+  InternetGateWay:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${Project}-igw-${AWS::StackName}
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref InternetGateWay
+      VpcId: !Ref VPC
+### Nat Gateway
+  NatGateWayEIP:
+    DependsOn: InternetGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: !Ref VPC
+  NatGateWay:
+    DependsOn: InternetGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt 
+        - NatGateWayEIP
+        - AllocationId
+      SubnetId: !Ref PrivateSubnetN
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-NatGateway-${AWS::StackName}
+### Subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select 
+        - '0'
+        - !Ref AvailabilityZones
+      CidrBlock: !Ref  PublicSubnetACIDR
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PubSubA-${AWS::StackName}
+      VpcId: !Ref VPC
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select 
+        - '1'
+        - !Ref AvailabilityZones
+      CidrBlock: !Ref  PublicSubnetBCIDR
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PubSubB-${AWS::StackName}
+      VpcId: !Ref VPC
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select 
+        - '0'
+        - !Ref AvailabilityZones
+      CidrBlock: !Ref  PrivateSubnetACIDR
+      MapPublicIpOnLaunch: false
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PriSubA-${AWS::StackName}
+      VpcId: !Ref VPC
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select 
+        - '1'
+        - !Ref AvailabilityZones
+      CidrBlock: !Ref  PrivateSubnetBCIDR
+      MapPublicIpOnLaunch: false
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PriSubB-${AWS::StackName}
+      VpcId: !Ref VPC
+  PrivateSubnetN:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Select 
+        - '2'
+        - !Ref AvailabilityZones
+      CidrBlock: !Ref  PrivateSubnetNCIDR
+      MapPublicIpOnLaunch: false
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PriSubN-${AWS::StackName}
+      VpcId: !Ref VPC
+## Route Tables
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PublicRoute-${AWS::StackName}
+      VpcId: !Ref VPC
+  NatRT:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-NatRoute-${AWS::StackName}
+      VpcId: !Ref VPC
+  PrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-PrivateRoute-${AWS::StackName}
+      VpcId: !Ref VPC
+### Public Route
+  PublicRoute:
+    DependsOn: InternetGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties: 
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateWay
+      RouteTableId: !Ref PublicRT
+### Natted Route  
+  NatRoute:
+    DependsOn: InternetGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties: 
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateWay
+      RouteTableId: !Ref NatRT
+### Subnet Route Table Association
+  PulicARTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRT
+      SubnetId: !Ref PublicSubnetA
+  PublicBRTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRT
+      SubnetId: !Ref PublicSubnetB
+  NATRTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref NatRT
+      SubnetId: !Ref PrivateSubnetN
+  PrivateARTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRT
+      SubnetId: !Ref PrivateSubnetA
+  PrivateBRTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRT
+      SubnetId: !Ref PrivateSubnetB
+### Security Group
+  SGALLOW:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: Allow-${AllowSecurityGroup}
+      GroupDescription: Security Group to allow traffic from ${AllowSecurityGroup}
+      SecurityGroupIngress: 
+        - CidrIp: ${AllowSecurityGroup}
+          Description: Allowed all ports for IP ${AllowSecurityGroup} Network
+          IpProtocol: tcp
+          FromPort: '0' 
+          ToPort: '65535'
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Project}-securityGroup-${AWS::StackName}
+      VpcId: !Ref VPC
+
+Outputs:
+  VPCOUT:
+    Description: VPC Id
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-VPC
+  PublicA:
+    Description: Public Subnet A ID
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-PublicSubnetA
+  PublicB:
+    Description: Public Subnet B ID
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub -${AWS::StackName}-${Project}-PublicSubnetB
+  PrivateA:
+    Description: Private Subnet A ID
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-PrivateSubnetA
+  PrivateB:
+    Description: Private Subnet B ID
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-PrivateSubnetB
+  NatGateway1Ip:
+    Description: Nat Gateway Elastic Ip 
+    Value: !Ref NatGateWayEIP
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-NG-EIP
+  SecurityGroup:
+    Description: Security Group Name 
+    Value: !Ref SGALLOW
+    Export:
+      Name: !Sub ${AWS::StackName}-${Project}-SG-AllowedIP
+### EOF
